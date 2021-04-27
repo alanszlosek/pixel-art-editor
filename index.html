@@ -168,21 +168,22 @@ button.notice, #nav > div.notice {
 }
 
 #controls {
-    display: grid;
-    gap: 3px;
-    grid-template-columns: 15% 15% 15% 15% 15% 15% 15%;
-    height: 40px;
+    display: flex;
     margin-bottom: 10px;
 }
 #controls > div {
-    border: 1px solid white;
+    flex: 1;
+    height: 40px;
+    padding-top: 10px;
+    text-align: center;
+}
+#controls > div.spacer {
+    flex: 0 0 3px;
 }
 #controls > div.selected {
-    border: 1px solid black;
+    border-bottom: 3px solid black;
 }
-.brush {
-    height: 30px;
-}
+
 
 #palette {
     display: grid;
@@ -208,6 +209,16 @@ button.notice, #nav > div.notice {
     border: 1px solid black;
 }
 
+.brush {
+    border: 0px;
+ 
+}
+.brushType {
+    background-color: #7cafc2;
+    border-bottom: 3px solid #7cafc2;
+}
+
+
 </style>
 </head>
 <body id="body">
@@ -215,11 +226,13 @@ button.notice, #nav > div.notice {
     <div id="controls">
         <div class="brush" id="color1" style="background-color: yellow;">Brush 1</div>
         <div class="brush" id="color2">Brush 2</div>
-        <div data-action="brushType" data-value="1">1x</div>
-        <div data-action="brushType" data-value="3">3x</div>
-        <div data-action="brushType" data-value="5">5x</div>
-        <div data-action="brushType" data-value="fill">Fill</div>
-        <div data-action="toggleGrid">Show Grid</div>
+        <div class="spacer"></div>
+        <div class="brushType" data-action="brushType" data-value="1">1x</div>
+        <div class="brushType" data-action="brushType" data-value="3">3x</div>
+        <div class="brushType" data-action="brushType" data-value="5">5x</div>
+        <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
+        <div class="spacer"></div>
+        <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
     </div>
 
     
@@ -418,10 +431,10 @@ var handlers = {
                 }
                 if (cursor.brushType == 'fill') {
                     // color cells around, too
-                    cursor.fill(e.target);
+                    pixels.fill(e.target);
                 } else {
                     let sz = parseInt(cursor.brushType);
-                    console.log('num')
+                    console.log(sz)
 
                 }
                 pixels.changed = true;
@@ -480,12 +493,6 @@ let cursor = {
     start: false,
     brushType: 1,
 
-    fill: function(el) {
-        // find element's offset/index within the grid
-        // use "cutoff" functions on the index: firstRow, lastRow, leftEdge, rightEdge
-
-
-    }
 };
 
 var square = 16;
@@ -556,8 +563,20 @@ var pixels = {
     handles: {
         container: document.getElementById('pixels')
     },
+    
+    firstRowCutoff: null,
+    lastRowCutoff: null,
+    atLeftEdge: function(index) {
+        return (index % settings.width) == 0;
+    },
+    atRightEdge: function(index) {
+        return (index % settings.width) == (settings.width - 1);
+    },
+    
     init: function() {
-
+        this.firstRowCutoff = settings.width;
+        this.lastRowCutoff = (settings.width * settings.width) - settings.width;
+    
         var percentage = (100 / settings.width) + '% ';
         pixels.handles.container.style['gridTemplateColumns'] = percentage.repeat(settings.width);
 
@@ -566,7 +585,7 @@ var pixels = {
         for (let i = 0; i < settings.width; i++) {
             for (let j = 0; j < settings.width; j++) {
                 this.squares.push(
-                    tag('DIV', {"data-offset": index}, [])
+                    tag('DIV', {"data-index": index}, [])
                 );
                 index++;
             }
@@ -592,6 +611,24 @@ var pixels = {
             node.style.backgroundColor = colors[i];
 
         });
+    },
+    
+    
+    fill: function(el) {
+        let index = parseInt(el.getAttribute('data-index'));
+        console.log(index);
+        // find element's offset/index within the grid
+        // use "cutoff" functions on the index: firstRow, lastRow, leftEdge, rightEdge
+        
+        let out = [
+            'firstRow:', index < this.firstRowCutoff,
+            'lastRow:', index > this.lastRowCutoff,
+            'atLeftEdge:', this.atLeftEdge(index),
+            'atRightEdge:', this.atRightEdge(index)
+        ];
+        console.log( out.join(', ') );
+
+
     }
 
 
