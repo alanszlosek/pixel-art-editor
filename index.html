@@ -167,6 +167,18 @@ button.notice, #nav > div.notice {
     width: 100%;
 }
 
+#palette {
+    display: grid;
+    grid-template-columns: 10% 10% 10% 10% 10% 10% 10% 10% 10% 10% ;
+}
+#palette > div {
+    height: 40px;
+    width: 40px;
+}
+#palette > div.selected {
+    border: 2px solid red;
+}
+
 #controls {
     display: flex;
     margin-bottom: 10px;
@@ -185,27 +197,15 @@ button.notice, #nav > div.notice {
 }
 
 
-#palette {
-    display: grid;
-    grid-template-columns: 10% 10% 10% 10% 10% 10% 10% 10% 10% 10% ;
-}
-#palette > div {
-    height: 40px;
-    width: 40px;
-}
-#palette > div.selected {
-    border: 2px solid red;
-}
 
 #pixels {
     border: 1px solid black;
     display: grid;
-    max-width: 600px;
 }
 #pixels > div {
     width: 100%;
 }
-#pixels.grid > div {
+#canvas.grid > div {
     border: 1px solid black;
 }
 
@@ -223,22 +223,31 @@ button.notice, #nav > div.notice {
 </head>
 <body id="body">
 
-    <div id="controls">
-        <div class="brush" id="color1" style="background-color: yellow;">Brush 1</div>
-        <div class="brush" id="color2">Brush 2</div>
-        <div class="spacer"></div>
-        <div class="brushType" data-action="brushType" data-value="1">1x</div>
-        <div class="brushType" data-action="brushType" data-value="3">3x</div>
-        <div class="brushType" data-action="brushType" data-value="5">5x</div>
-        <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
-        <div class="spacer"></div>
-        <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
-    </div>
+    
 
     
     <div style="display: grid; grid-template-columns: 60% 40%;">
         <div id="pixels"></div>
-        <div id="palette"></div>
+        <div style="padding-left: 40px;">
+            <div id="controls">
+                <div class="brush" id="color1" style="background-color: yellow;">Brush 1</div>
+                <div class="brush" id="color2">Brush 2</div>
+                <div class="spacer"></div>
+                <div class="brushType" data-action="brushType" data-value="1">1x</div>
+                <div class="brushType" data-action="brushType" data-value="3">3x</div>
+                <div class="brushType" data-action="brushType" data-value="5">5x</div>
+                <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
+                <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
+                <div class="spacer"></div>
+                <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
+                <div>-</div>
+                <div>+</div>
+            </div>
+
+            <div id="palette"></div>
+
+        </div>
+        
     </div>
 
 <script>
@@ -417,27 +426,24 @@ var handlers = {
             } else if (e.button == 2) {
                 cursor.color2 = controls.handles.color2.style.backgroundColor = e.target.style.backgroundColor;
             }
-            
-            
         },
         pixels: function(e) {
             cursor.start = true;
             let el = e.target;
-            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == pixels.handles.container) {
+            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
                 if (e.button == 0) {
-                    e.target.style.backgroundColor = cursor.color1;
+                    cursor.activeColor = cursor.color1;
                 } else if (e.button == 2) {
-                    e.target.style.backgroundColor = cursor.color2;
+                    cursor.activeColor = cursor.color2;
                 }
                 if (cursor.brushType == 'fill') {
                     // color cells around, too
-                    pixels.fill(e.target);
+                    canvas.fill(e.target, cursor.activeColor);
                 } else {
                     let sz = parseInt(cursor.brushType);
-                    console.log(sz)
-
+                    e.target.style.backgroundColor = cursor.activeColor;
                 }
-                pixels.changed = true;
+                canvas.changed = true;
             }
         }
     },
@@ -447,13 +453,13 @@ var handlers = {
                 return;
             }
             let el = e.target;
-            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == pixels.handles.container) {
+            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
                 if (el.id == 'erase') {
                     e.target.style.backgroundColor = '';
                 } else {
-                    e.target.style.backgroundColor = cursor.color;
+                    e.target.style.backgroundColor = cursor.activeColor;
                 }
-                pixels.changed = true;
+                canvas.changed = true;
             }
         }
     },
@@ -468,7 +474,7 @@ var handlers = {
         pixels: function(e) {
             console.log(e);
             let el = e.target;
-            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == pixels.handles.container) {
+            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
                 e.target.style.backgroundColor = cursor.color;
 
             }
@@ -490,12 +496,13 @@ let paletteColors = ["#472d3c","#5e3643","#7a444a","#a05b53","#bf7958","#eea160"
 let cursor = {
     color1: 'yellow',
     color2: '',
+    activeColor: '',
     start: false,
     brushType: 1,
 
 };
 
-var square = 16;
+var square = 8;
 var settings = {
     width: square,
     height: square
@@ -542,7 +549,7 @@ let controls = {
     },
 
     toggleGrid: function() {
-        pixels.handles.container.classList.toggle('grid');
+        canvas.handles.container.classList.toggle('grid');
     },
     brushType: function(target) {
         let self = this;
@@ -557,7 +564,7 @@ let controls = {
     }
 }
 
-var pixels = {
+var canvas = {
     changed: false,
     squares: [],
     handles: {
@@ -566,6 +573,12 @@ var pixels = {
     
     firstRowCutoff: null,
     lastRowCutoff: null,
+    atFirstRow: function(index) {
+        return index < this.firstRowCutoff;
+    },
+    atLastRow: function(index) {
+        return index >= this.lastRowCutoff;
+    },  
     atLeftEdge: function(index) {
         return (index % settings.width) == 0;
     },
@@ -578,7 +591,7 @@ var pixels = {
         this.lastRowCutoff = (settings.width * settings.width) - settings.width;
     
         var percentage = (100 / settings.width) + '% ';
-        pixels.handles.container.style['gridTemplateColumns'] = percentage.repeat(settings.width);
+        canvas.handles.container.style['gridTemplateColumns'] = percentage.repeat(settings.width);
 
         this.squares = [];
         let index = 0;
@@ -590,14 +603,14 @@ var pixels = {
                 index++;
             }
         }
-        drawChildren(pixels.handles.container, this.squares);
+        drawChildren(canvas.handles.container, this.squares);
 
-        let w = pixels.handles.container.childNodes[0].clientWidth;
-        for (let i = 0; i < pixels.handles.container.childNodes.length; i++) {
-            pixels.handles.container.childNodes[i].style['height'] = w + 'px';
+        let w = canvas.handles.container.childNodes[0].clientWidth;
+        for (let i = 0; i < canvas.handles.container.childNodes.length; i++) {
+            canvas.handles.container.childNodes[i].style['height'] = w + 'px';
         }
 
-        pixels.load();
+        canvas.load();
 
     },
     load: function() {
@@ -607,28 +620,72 @@ var pixels = {
         }
         let colors = JSON.parse(c);
 
-        pixels.handles.container.childNodes.forEach(function(node, i) {
+        canvas.handles.container.childNodes.forEach(function(node, i) {
             node.style.backgroundColor = colors[i];
 
         });
     },
     
     
-    fill: function(el) {
+    fill: function(el, color) {
         let index = parseInt(el.getAttribute('data-index'));
-        console.log(index);
+        let colorToReplace = el.style.backgroundColor;
+        let queue = [];
+        let seen = [];
+
+        console.log('Starting at ' + index);
+
+        queue.push(index);
+
+        while (queue.length > 0) {
+            let index = queue.shift();
+            let neighbor;
+            seen[index] = true;
+
+            let el = this.squares[index];
+            el.style.backgroundColor = color;
+
+            if (!this.atLeftEdge(index)) {
+                neighborIndex = index - 1;
+                neighbor = canvas.squares[ neighborIndex ];
+                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
+                    queue.push(neighborIndex);
+                }
+            }
+            if (!this.atRightEdge(index)) {
+                neighborIndex = index + 1;
+                neighbor = canvas.squares[ neighborIndex ];
+                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
+                    queue.push(neighborIndex);
+                }
+            }
+            if (!this.atFirstRow(index)) {
+                neighborIndex = index - settings.width;
+                neighbor = canvas.squares[ neighborIndex ];
+                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
+                    queue.push(neighborIndex);
+                }
+            }
+            if (!this.atLastRow(index)) {
+                neighborIndex = index + settings.width;
+                neighbor = canvas.squares[ neighborIndex ];
+                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
+                    queue.push(neighborIndex);
+                }
+            }
+        }
+
+
         // find element's offset/index within the grid
         // use "cutoff" functions on the index: firstRow, lastRow, leftEdge, rightEdge
         
         let out = [
-            'firstRow:', index < this.firstRowCutoff,
-            'lastRow:', index > this.lastRowCutoff,
+            'firstRow:', this.atFirstRow(index),
+            'lastRow:', this.atLastRow(index),
             'atLeftEdge:', this.atLeftEdge(index),
             'atRightEdge:', this.atRightEdge(index)
         ];
         console.log( out.join(', ') );
-
-
     }
 
 
@@ -724,16 +781,16 @@ var tagVideo = function(tagId) {
     }
 };
 
-pixels.init();
+canvas.init();
 controls.init();
 
 setInterval(
     function() {
         let out = [];
-        if (!pixels.changed) {
+        if (!canvas.changed) {
             return;
         }
-        pixels.handles.container.childNodes.forEach(function(node) {
+        canvas.handles.container.childNodes.forEach(function(node) {
             out.push( node.style.backgroundColor );
 
         });
