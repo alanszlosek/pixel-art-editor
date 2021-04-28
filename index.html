@@ -152,20 +152,7 @@ button.notice, #nav > div.notice {
     width: 100%;
 }
 
-#preview {
-    background-color: white;
-    display: block;
-    height: 100vw;
-    left: 0px;
-    padding: 5px;
-    position: absolute;
-    top: 0px;
-    width: 100vw;
-    z-index: 10;
-}
-#preview > img {
-    width: 100%;
-}
+
 
 #palette {
     display: grid;
@@ -179,30 +166,31 @@ button.notice, #nav > div.notice {
     border: 2px solid red;
 }
 
-#controls {
+div.controls {
     display: flex;
     margin-bottom: 10px;
 }
-#controls > div {
+div.controls > div {
     flex: 1;
     height: 40px;
     padding-top: 10px;
     text-align: center;
 }
-#controls > div.spacer {
+div.controls > div.spacer {
     flex: 0 0 3px;
 }
-#controls > div.selected {
+div.controls > div.selected {
     border-bottom: 3px solid black;
 }
 
 
 
-#pixels {
+#canvas {
     border: 1px solid black;
     display: grid;
+    width: 100%;
 }
-#pixels > div {
+#canvas > div {
     width: 100%;
 }
 #canvas.grid > div {
@@ -223,28 +211,34 @@ button.notice, #nav > div.notice {
 </head>
 <body id="body">
 
-    
-
-    
     <div style="display: grid; grid-template-columns: 60% 40%;">
-        <div id="pixels"></div>
+        <div>
+            <div id="canvas"></div>
+        </div>
         <div style="padding-left: 40px;">
             <div id="controls">
+                <div class="controls">
                 <div class="brush" id="color1" style="background-color: yellow;">Brush 1</div>
                 <div class="brush" id="color2">Brush 2</div>
-                <div class="spacer"></div>
-                <div class="brushType" data-action="brushType" data-value="1">1x</div>
-                <div class="brushType" data-action="brushType" data-value="3">3x</div>
-                <div class="brushType" data-action="brushType" data-value="5">5x</div>
-                <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
-                <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
-                <div class="spacer"></div>
-                <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
-                <div>-</div>
-                <div>+</div>
+                </div>
+                <div class="controls">
+                    <div class="brushType" data-action="brushType" data-value="1">1x</div>
+                    <div class="brushType" data-action="brushType" data-value="3">3x</div>
+                    <div class="brushType" data-action="brushType" data-value="5">5x</div>
+                    <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
+                    <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
+                </div>
+                <div class="controls">
+                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
+                    <div data-action="zoomOut">-</div>
+                    <div data-action="zoomIn">+</div>
+                </div>
             </div>
 
             <div id="palette"></div>
+            <div id="preview">
+                <h2>Tiling Preview</h2>
+            </div>
 
         </div>
         
@@ -414,7 +408,7 @@ var handlers = {
         palette: function(e) {
             e.preventDefault();
         },
-        pixels: function(e) {
+        canvas: function(e) {
             e.preventDefault(); // to prevent right-click context menu
         }
     },
@@ -427,7 +421,7 @@ var handlers = {
                 cursor.color2 = controls.handles.color2.style.backgroundColor = e.target.style.backgroundColor;
             }
         },
-        pixels: function(e) {
+        canvas: function(e) {
             cursor.start = true;
             let el = e.target;
             if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
@@ -448,7 +442,7 @@ var handlers = {
         }
     },
     mousemove: {
-        pixels: function(e) {
+        canvas: function(e) {
             if (!cursor.start) {
                 return;
             }
@@ -471,7 +465,7 @@ var handlers = {
 
     click: {
         /*
-        pixels: function(e) {
+        canvas: function(e) {
             console.log(e);
             let el = e.target;
             if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
@@ -509,6 +503,7 @@ var settings = {
 };
 
 let controls = {
+    zoom: 100,
     handles: {
         controls: document.getElementById('controls'),
         color1: document.getElementById('color1'),
@@ -560,15 +555,29 @@ let controls = {
         target.classList.add('selected');
         
         cursor.brushType = target.getAttribute('data-value');
-
-    }
+    },
+    zoomIn: function() {
+        this.zoom += 10;
+        if (this.zoom > 100) {
+            this.zoom = 100;
+        }
+        canvas.setZoom(this.zoom);
+    },
+    zoomOut: function() {
+        this.zoom -= 10;
+        if (this.zoom < 10) {
+            this.zoom = 10;
+        }
+        
+        canvas.setZoom(this.zoom);
+    },
 }
 
 var canvas = {
     changed: false,
     squares: [],
     handles: {
-        container: document.getElementById('pixels')
+        container: document.getElementById('canvas')
     },
     
     firstRowCutoff: null,
@@ -604,14 +613,21 @@ var canvas = {
             }
         }
         drawChildren(canvas.handles.container, this.squares);
+        
+        this.setCellHeight();
 
+        canvas.load();
+
+    },
+    setZoom: function(width) {
+        canvas.handles.container.style.width = width + '%';
+        this.setCellHeight();
+    },
+    setCellHeight: function() {
         let w = canvas.handles.container.childNodes[0].clientWidth;
         for (let i = 0; i < canvas.handles.container.childNodes.length; i++) {
             canvas.handles.container.childNodes[i].style['height'] = w + 'px';
         }
-
-        canvas.load();
-
     },
     load: function() {
         let c = localStorage.getItem('pixels');
