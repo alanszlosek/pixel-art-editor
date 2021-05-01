@@ -101,6 +101,7 @@ button.notice, #nav > div.notice {
 .flex.seven > div {
     flex: 1 1 14.2857%;
 }
+
 .button.smaller {
     font-size: smaller; /*.75em;*/
 }
@@ -159,8 +160,7 @@ button.notice, #nav > div.notice {
     grid-template-columns: 10% 10% 10% 10% 10% 10% 10% 10% 10% 10% ;
 }
 #palette > div {
-    height: 40px;
-    width: 40px;
+    height: 50px;
 }
 #palette > div.selected {
     border: 2px solid red;
@@ -176,14 +176,14 @@ div.controls > div {
     padding-top: 10px;
     text-align: center;
 }
-div.controls > div.spacer {
-    flex: 0 0 3px;
-}
+
 div.controls > div.selected {
     border-bottom: 3px solid black;
 }
 
-
+.controls > div.spacer, .flex > div.spacer {
+    flex: 0 0 10px;
+}
 
 #canvas {
     border: 1px solid black;
@@ -198,7 +198,7 @@ div.controls > div.selected {
 }
 
 .brush {
-    border: 0px;
+    border: 1px solid black;
  
 }
 .brushType {
@@ -217,19 +217,25 @@ div.controls > div.selected {
         </div>
         <div style="padding-left: 40px;">
             <div id="controls">
-                <div class="controls">
-                <div class="brush" id="color1" style="background-color: yellow;">Brush 1</div>
-                <div class="brush" id="color2">Brush 2</div>
+                <div class="flex">
+                    <div>Primary</div>
+                    <div class="spacer"></div>
+                    <div>Secondary</div>
                 </div>
                 <div class="controls">
-                    <div class="brushType" data-action="brushType" data-value="1">1x</div>
-                    <div class="brushType" data-action="brushType" data-value="3">3x</div>
-                    <div class="brushType" data-action="brushType" data-value="5">5x</div>
+                    <div class="brush" id="color1" style="background-color: yellow;"></div>
+                    <div class="spacer"></div>
+                    <div class="brush" id="color2"></div>
+                </div>
+                <div class="controls">
+                    <div class="brushType" data-action="brushType" data-value="1">1px</div>
+                    <div class="brushType" data-action="brushType" data-value="3">3px</div>
+                    <div class="brushType" data-action="brushType" data-value="5">5px</div>
                     <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
                     <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
                 </div>
                 <div class="controls">
-                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Show Grid</div>
+                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Toggle Grid</div>
                     <div data-action="zoomOut">-</div>
                     <div data-action="zoomIn">+</div>
                 </div>
@@ -424,21 +430,19 @@ var handlers = {
         canvas: function(e) {
             cursor.start = true;
             let el = e.target;
-            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
-                if (e.button == 0) {
-                    cursor.activeColor = cursor.color1;
-                } else if (e.button == 2) {
-                    cursor.activeColor = cursor.color2;
-                }
-                if (cursor.brushType == 'fill') {
-                    // color cells around, too
-                    canvas.fill(e.target, cursor.activeColor);
-                } else {
-                    let sz = parseInt(cursor.brushType);
-                    e.target.style.backgroundColor = cursor.activeColor;
-                }
-                canvas.changed = true;
+            if (e.button == 0) {
+                cursor.activeColor = cursor.color1;
+            } else if (e.button == 2) {
+                cursor.activeColor = cursor.color2;
             }
+            if (cursor.brushType == 'fill') {
+                // color cells around, too
+                canvas.fill(e.target, cursor.activeColor);
+            } else {
+                let sz = parseInt(cursor.brushType);
+                e.target.style.backgroundColor = cursor.activeColor;
+            }
+            canvas.changed = true;
         }
     },
     mousemove: {
@@ -447,14 +451,12 @@ var handlers = {
                 return;
             }
             let el = e.target;
-            if (el.tagName == 'DIV' && el.parentNode && el.parentNode == canvas.handles.container) {
-                if (el.id == 'erase') {
-                    e.target.style.backgroundColor = '';
-                } else {
-                    e.target.style.backgroundColor = cursor.activeColor;
-                }
-                canvas.changed = true;
+            if (el.id == 'erase') {
+                e.target.style.backgroundColor = '';
+            } else {
+                e.target.style.backgroundColor = cursor.activeColor;
             }
+            canvas.changed = true;
         }
     },
     mouseup: {
@@ -496,7 +498,7 @@ let cursor = {
 
 };
 
-var square = 8;
+var square = 16;
 var settings = {
     width: square,
     height: square
@@ -647,47 +649,33 @@ var canvas = {
         let index = parseInt(el.getAttribute('data-index'));
         let colorToReplace = el.style.backgroundColor;
         let queue = [];
-        let seen = [];
+        let seen = []; // to prevent duplicate enqueueing
+        let conditionalAdd = function(neighborIndex) {
+            let neighbor = canvas.squares[ neighborIndex ];
+            if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
+                queue.push(neighborIndex);
+                seen[neighborIndex] = true;
+            }
+        };
 
         console.log('Starting at ' + index);
-
         queue.push(index);
 
         while (queue.length > 0) {
             let index = queue.shift();
-            let neighbor;
-            seen[index] = true;
-
             let el = this.squares[index];
             el.style.backgroundColor = color;
-
             if (!this.atLeftEdge(index)) {
-                neighborIndex = index - 1;
-                neighbor = canvas.squares[ neighborIndex ];
-                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
-                    queue.push(neighborIndex);
-                }
+                conditionalAdd(index - 1);
             }
             if (!this.atRightEdge(index)) {
-                neighborIndex = index + 1;
-                neighbor = canvas.squares[ neighborIndex ];
-                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
-                    queue.push(neighborIndex);
-                }
+                conditionalAdd(index + 1);
             }
             if (!this.atFirstRow(index)) {
-                neighborIndex = index - settings.width;
-                neighbor = canvas.squares[ neighborIndex ];
-                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
-                    queue.push(neighborIndex);
-                }
+                conditionalAdd(index - settings.width);
             }
             if (!this.atLastRow(index)) {
-                neighborIndex = index + settings.width;
-                neighbor = canvas.squares[ neighborIndex ];
-                if (!seen[neighborIndex] && colorToReplace == neighbor.style.backgroundColor) {
-                    queue.push(neighborIndex);
-                }
+                conditionalAdd(index + settings.width);
             }
         }
 
@@ -811,6 +799,7 @@ setInterval(
 
         });
         localStorage.setItem('pixels', JSON.stringify(out));
+        canvas.changed = false;
     },
     2000
 );
