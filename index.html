@@ -235,9 +235,11 @@ div.controls > div.selected {
                     <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
                 </div>
                 <div class="controls">
-                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Toggle Grid</div>
+                    <div data-action="undo">Undo</div>
+                    <div data-action="redo">Redo</div>
                     <div data-action="zoomOut">-</div>
                     <div data-action="zoomIn">+</div>
+                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Toggle Grid</div>
                 </div>
             </div>
 
@@ -399,12 +401,32 @@ var handlers = {
             // left arrow
             switch (e.key) {
                 // backspace
+                case 'Shift':
+                case 'Control':
+                    controls.alt = true;
                 case 'Backspace':
                     e.preventDefault();
                     e.stopPropagation();
                     archive();
                     break;
                 default:
+                    console.log(e.keyCode);
+                    
+            }
+        }
+    },
+    keyup: {
+        body: function(e) {
+            console.log(e)
+            // left arrow
+            switch (e.key) {
+                /*
+                case 'Shift':
+                case 'Control':
+                    controls.alt = true;
+                */
+                default:
+                    controls.alt = false;
                     console.log(e.keyCode);
                     
             }
@@ -421,24 +443,26 @@ var handlers = {
 
     mousedown: {
         palette: function(e) {
-            if (e.button == 0) {
-                cursor.color1 = controls.handles.color1.style.backgroundColor = e.target.style.backgroundColor;
-            } else if (e.button == 2) {
+            if (e.button == 2 || (e.button == 0 && controls.alt)) {
                 cursor.color2 = controls.handles.color2.style.backgroundColor = e.target.style.backgroundColor;
+            } else if (e.button == 0) {
+                cursor.color1 = controls.handles.color1.style.backgroundColor = e.target.style.backgroundColor;
             }
         },
         canvas: function(e) {
             cursor.start = true;
             let el = e.target;
-            if (e.button == 0) {
-                cursor.activeColor = cursor.color1;
-            } else if (e.button == 2) {
+            if (e.button == 2 || (e.button == 0 && controls.alt)) {
                 cursor.activeColor = cursor.color2;
+            } else if (e.button == 0) {
+                cursor.activeColor = cursor.color1;
             }
             if (cursor.brushType == 'fill') {
                 // color cells around, too
                 canvas.fill(e.target, cursor.activeColor);
             } else {
+                let paintWidth = function(color, ) {
+                };
                 let sz = parseInt(cursor.brushType);
                 e.target.style.backgroundColor = cursor.activeColor;
             }
@@ -450,18 +474,19 @@ var handlers = {
             if (!cursor.start) {
                 return;
             }
-            let el = e.target;
-            if (el.id == 'erase') {
-                e.target.style.backgroundColor = '';
-            } else {
-                e.target.style.backgroundColor = cursor.activeColor;
-            }
+            e.target.style.backgroundColor = cursor.activeColor;
             canvas.changed = true;
         }
     },
     mouseup: {
         body: function(e) {
             cursor.start = false;
+        }
+    },
+    dragstart: {
+        canvas: function(e) {
+            console.log('cancelling drag');
+            e.preventDefault();
         }
     },
 
