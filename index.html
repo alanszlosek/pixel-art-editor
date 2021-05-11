@@ -450,6 +450,8 @@ var handlers = {
             }
         },
         canvas: function(e) {
+            history.save();
+
             cursor.start = true;
             let el = e.target;
             if (e.button == 2 || (e.button == 0 && controls.alt)) {
@@ -548,6 +550,7 @@ let controls = {
                 target = target.parentNode;
             }
             action = target.getAttribute('data-action');
+            // can remove this as long as we're careful
             if (action in self) {
                 self[action](target, event);
             }
@@ -598,7 +601,13 @@ let controls = {
         
         canvas.setZoom(this.zoom);
     },
-}
+    undo: function() {
+        history.undo();
+    },
+    redo: function() {
+        history.redo();
+    }
+};
 
 var canvas = {
     changed: false,
@@ -656,17 +665,28 @@ var canvas = {
             canvas.handles.container.childNodes[i].style['height'] = w + 'px';
         }
     },
+    // TODO: rename / reword
+    getPixels: function() {
+        let pixels = [];
+        canvas.handles.container.childNodes.forEach(function(node) {
+            pixels.push( node.style.backgroundColor );
+        });
+        return pixels;
+    },
+    setPixels: function(pixels) {
+        canvas.handles.container.childNodes.forEach(function(node, i) {
+            node.style.backgroundColor = pixels[i];
+        });
+    },
+
+    // resume
     load: function() {
         let c = localStorage.getItem('pixels');
         if (!c) {
             return;
         }
         let colors = JSON.parse(c);
-
-        canvas.handles.container.childNodes.forEach(function(node, i) {
-            node.style.backgroundColor = colors[i];
-
-        });
+        this.setPixels(colors);
     },
     
     
@@ -683,7 +703,8 @@ var canvas = {
             }
         };
 
-        console.log('Starting at ' + index);
+        history.save();
+
         queue.push(index);
 
         while (queue.length > 0) {
@@ -703,115 +724,60 @@ var canvas = {
                 conditionalAdd(index + settings.width);
             }
         }
+        canvas.changed = true;
+    }
 
+};
 
-        // find element's offset/index within the grid
-        // use "cutoff" functions on the index: firstRow, lastRow, leftEdge, rightEdge
+let history = {
+    _undo: [],
+    _redo: [],
+
+    init: function() {
+        // load from localStorage into _undo and _redo
+    },
+
+    // save current state onto history/_undo
+    save: function() {
+        let pixels = canvas.getPixels();
+        this._undo.push(pixels);
+
+        // Clear redo/future since we've "altered" history
+        this._redo = [];
+    },
+
+    undo: function() {
+        let pixels;
+        if (this._undo.length == 0) {
+            return;
+        }
+
+        pixels = canvas.getPixels();
+        this._redo.push( pixels );
+
+        pixels = this._undo.pop();
+        canvas.setPixels(pixels);
+
+    },
+    redo: function() {
+        let pixels;
+        if (this._redo.length == 0) {
+            return;
+        }
+
+        pixels = canvas.getPixels();
+        this._undo.push( pixels );
         
-        let out = [
-            'firstRow:', this.atFirstRow(index),
-            'lastRow:', this.atLastRow(index),
-            'atLeftEdge:', this.atLeftEdge(index),
-            'atRightEdge:', this.atRightEdge(index)
-        ];
-        console.log( out.join(', ') );
+        pixels = this._redo.pop();
+        canvas.setPixels( pixels );
     }
 
-
-}
-
-
-
-
-var currentlyPlaying;
-
-var prev = function() {
-    var temp;
-    if (currentlyPlaying) {
-        currentlyPlaying.pause();
-
-        if (
-            currentlyPlaying.parentNode.previousElementSibling
-            &&
-            currentlyPlaying.parentNode.previousElementSibling.childNodes[0]) {
-            // assuming it's loaded
-            currentlyPlaying = currentlyPlaying.parentNode.previousElementSibling.childNodes[0];
-            currentlyPlaying.focus();
-            currentlyPlaying.play();
-        }
-
-    }
 };
 
-var next = function() {
-    if (currentlyPlaying) {
-        currentlyPlaying.pause();
-        
-        if (currentlyPlaying.parentNode.nextElementSibling
-            &&
-            currentlyPlaying.parentNode.nextElementSibling.childNodes[0]) {
-            currentlyPlaying = currentlyPlaying.parentNode.nextElementSibling.childNodes[0];
-            currentlyPlaying.focus();
-            currentlyPlaying.play();
-        }
-    } else {
-        // nothing current, start at the first video
-        var tags = handles.videos.querySelectorAll('div');
-        if (tags.length > 0) {
-            tags[0].childNodes[0].play();
-        }
-    }
-};
-
-var rewind = function(big) {
-    if (currentlyPlaying) {
-        var offset = big ? 20.0 : 5.0;
-        //currentlyPlaying.fastSeek( currentlyPlaying.currentTime - offset);
-        currentlyPlaying.currentTime -= offset;
-    }
-};
-var forward = function(big) {
-    if (currentlyPlaying) {
-        var offset = big ? 20.0 : 5.0;
-        //currentlyPlaying.fastSeek( currentlyPlaying.currentTime + offset);
-        currentlyPlaying.currentTime += offset;
-    }
-};
-
-var archive = function() {
-    if (currentlyPlaying) {
-        var id = currentlyPlaying.getAttribute('data-id');
-        ajax.post('/api/video/archive/' + encodeURIComponent(id), {}, function(error) {
-            if (error) {
-                console.log(error);
-                return;
-            }
-            var el = currentlyPlaying;
-            next();
-            el.parentNode.remove();
-        });
-    }
-};
-
-var tagVideo = function(tagId) {
-    if (currentlyPlaying) {
-        var id = currentlyPlaying.getAttribute('data-id');
-        ajax.post('/api/video/tag/' + encodeURIComponent(id), {tagId: tagId}, function(error, data) {
-            if (error) {
-                console.log(error);
-                return;
-            }
-            var tags;
-            if (data.tags) {
-                tags = '#' + data.tags.join(' #');
-            }
-            currentlyPlaying.parentNode.querySelectorAll('.tags')[0].innerText = tags;
-        });
-    }
-};
 
 canvas.init();
 controls.init();
+history.init();
 
 setInterval(
     function() {
