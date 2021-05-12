@@ -13,6 +13,7 @@ Nothing to install. Just open index.html in your browser.
 * Associate primary color with left mouse button, secondary with right
 * Fill tool
 * Zoom in/out - WIP
+* Undo / redo
 
 # Coming Soon
 
