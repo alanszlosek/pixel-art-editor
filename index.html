@@ -17,16 +17,7 @@ html,body,button,input,textarea,div,em,a {
     margin: 0;
     padding: 0;
 }
-body {
-}
-/*
-* {
-    font-size: 1.05em;
-}
-*/
 
-body, button, input, textarea {
-}
 button {
     background-color: #3372b3;
     border: 0;
@@ -246,6 +237,7 @@ div.controls > div.selected {
             <div id="palette"></div>
             <div id="preview">
                 <h2>Tiling Preview</h2>
+                <div id="tiled"></div>
             </div>
 
         </div>
@@ -253,65 +245,6 @@ div.controls > div.selected {
     </div>
 
 <script>
-var ajax = {
-
-    start: function() {
-    },
-    stop: function() {
-    },
-    get: function(url, callback) {
-        var request = new XMLHttpRequest();
-        ajax.start();
-        request.open('GET', url, true);
-
-        request.addEventListener('load', function() {
-            if (request.status >= 200 && request.status < 400) {
-                try {
-                    var data = JSON.parse(request.responseText);
-                    callback(null, data);
-                } catch (e) {
-                    callback("JSON parse: " + e.message);
-                }
-            } else {
-                // We reached our target server, but it returned an error
-                callback('Did not get 20x or 30x HTTP status');
-            }
-            ajax.stop();
-        });
-
-        request.addEventListener('error', function(event) {
-            callback('GET failed. Did we lose connectivity?');
-            ajax.stop();
-        });
-
-        request.send();
-    },
-
-    post: function(url, data, callback) {
-        var request = new XMLHttpRequest();
-        ajax.start();
-        request.open('POST', url, true);
-        request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
-        request.addEventListener('load', function() {
-            if (request.status >= 200 && request.status < 400) {
-                // Success!
-                var data = JSON.parse(request.responseText);
-                callback(null, data);
-            } else {
-                // We reached our target server, but it returned an error
-                callback('Did not get 20x or 30x HTTP status');
-            }
-            ajax.stop();
-        });
-
-        request.addEventListener('error', function(event) {
-            callback('POST failed. Did we lose connectivity?');
-            ajax.stop();
-        });
-        request.send(JSON.stringify(data));
-    }
-};
-
 var drawChildren = function(container, children) {
     /*
     More room for cool optimizations here:
@@ -330,31 +263,6 @@ var drawChildren = function(container, children) {
     });
 };
 
-/*
-var tag = function(tagName, attributes) {
-    var args = Array.prototype.slice.call(arguments);
-    tagName = args.shift();
-    attributes = args.shift();
-
-    var element = document.createElement(tagName);
-    for (var i in attributes) {
-        element.setAttribute(i, attributes[i]);
-    }
-    // Convert text to text node
-    for (var i = 0; i < args.length; i ++) {
-        var node = args[i];
-        if (node == null) {
-            continue;
-        } else if (node instanceof Node) {
-        } else {
-            node = document.createTextNode(args[i]);
-        }
-        element.appendChild(node);
-    }
-
-    return element;
-};
-*/
 var tag = function(tagName, attributes, children) {
     var element = document.createElement(tagName);
     for (var i in attributes) {
@@ -407,7 +315,6 @@ var handlers = {
                 case 'Backspace':
                     e.preventDefault();
                     e.stopPropagation();
-                    archive();
                     break;
                 default:
                     console.log(e.keyCode);
@@ -525,7 +432,7 @@ let cursor = {
 
 };
 
-var square = 16;
+var square = 32;
 var settings = {
     width: square,
     height: square
@@ -688,6 +595,10 @@ var canvas = {
         let colors = JSON.parse(c);
         this.setPixels(colors);
     },
+    save: function() {
+
+        
+    },
     
     
     fill: function(el, color) {
@@ -727,6 +638,21 @@ var canvas = {
         canvas.changed = true;
     }
 
+};
+
+var tiled = {
+    changed: false,
+    squares: [],
+    handles: {
+        container: document.getElementById('tiled')
+    },
+    init: function() {
+        // create canvas with width and height 3x the settings
+        let el = tag('CANVAS', {'width': settings.width * 3, 'height': settings.height * 3, 'style': 'width: 500px;'}, []);
+        this.handles.canvas = el;
+        drawChildren(tiled.handles.container, [el]);
+
+    }
 };
 
 let history = {
@@ -778,6 +704,7 @@ let history = {
 canvas.init();
 controls.init();
 history.init();
+tiled.init();
 
 setInterval(
     function() {
@@ -785,6 +712,7 @@ setInterval(
         if (!canvas.changed) {
             return;
         }
+        // TODO: move this logic to canvas.save()
         canvas.handles.container.childNodes.forEach(function(node) {
             out.push( node.style.backgroundColor );
 
@@ -794,6 +722,43 @@ setInterval(
     },
     2000
 );
+
+setInterval(
+    function() {
+        let c = tiled.handles.canvas;
+        let ctx = c.getContext('2d');
+        let id = ctx.getImageData(0, 0, settings.width, settings.height);
+        let a = id.data;
+
+        // TODO: move this logic to canvas.save()
+        let i = 0;
+        canvas.handles.container.childNodes.forEach(function(node) {
+            let bg = node.style.backgroundColor;
+            // TODO: this might be flaky
+            let parts = bg.substring(4, bg.length - 1).split(', ');
+
+            // TODO: handle empty / transparent regions
+            a[i] = parseInt(parts[0]);
+            a[i + 1] = parseInt(parts[1]);
+            a[i + 2] = parseInt(parts[2]);
+            a[i + 3] = 255; // alpha
+
+            i += 4;
+        });
+
+        // tile it!
+
+        for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+                ctx.putImageData(id, i * settings.width, j * settings.height);
+
+            }
+        }
+        
+    },
+    1000
+);
+
 
 </script>
 </body>
