@@ -2,6 +2,8 @@
 
 Just cuz.
 
+If you'd like to watch me write the code for this project, check out my [Pixel Art Editor playlist](https://www.youtube.com/playlist?list=PLGonE3T1sorSsJwFLeuFBOc26oRJaMfA5) on YouTube. It might make good background noise. :-)
+
 # Installation
 
 Nothing to install. Just open index.html in your browser.
