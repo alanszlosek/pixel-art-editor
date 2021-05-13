@@ -14,7 +14,11 @@ Nothing to install. Just open index.html in your browser.
 * Fill tool
 * Zoom in/out - WIP
 * Undo / redo
+* Preview area for when you're working on tiling textures for something like [voxeling](https://github.com/alanszlosek/voxeling), which is my primary use case.
 
 # Coming Soon
 
-* Preview area for when you're working on tiling textures for something like [voxeling](https://github.com/alanszlosek/voxeling), which is my primary use case.
+* 3px and 5px brushes
+* Export to PNG via `HTMLCanvasElement.toDataURL()` ... browsers are awesome!
+* Ability to edit more than 1 image at a time
+* Ability to set canvas size when starting a new image
