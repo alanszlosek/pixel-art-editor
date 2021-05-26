@@ -219,7 +219,7 @@ div.controls > div.selected {
                     <div class="brush" id="color2"></div>
                 </div>
                 <div class="controls">
-                    <div class="brushType" data-action="brushType" data-value="1">1px</div>
+                    <div class="brushType selected" data-action="brushType" data-value="1">1px</div>
                     <div class="brushType" data-action="brushType" data-value="3">3px</div>
                     <div class="brushType" data-action="brushType" data-value="5">5px</div>
                     <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
@@ -235,10 +235,13 @@ div.controls > div.selected {
             </div>
 
             <div id="palette"></div>
-            <div id="preview">
-                <h2>Tiling Preview</h2>
-                <div id="tiled"></div>
-            </div>
+            <h2>Tiling Preview</h2>
+            <div id="tiledPreview"></div>
+
+            <h2>Actual Size Preview</h2>
+            <div id="preview"></div>
+            <a href="#" id="previewLink" download="image.png">Download PNG</a>
+            <br /><br />
 
         </div>
         
@@ -370,10 +373,7 @@ var handlers = {
                 // color cells around, too
                 canvas.fill(e.target, cursor.activeColor);
             } else {
-                let paintWidth = function(color, ) {
-                };
-                let sz = parseInt(cursor.brushType);
-                e.target.style.backgroundColor = cursor.activeColor;
+                canvas.draw(e.target, cursor.activeColor);
             }
             canvas.changed = true;
         }
@@ -383,7 +383,7 @@ var handlers = {
             if (!cursor.start) {
                 return;
             }
-            e.target.style.backgroundColor = cursor.activeColor;
+            canvas.draw(e.target, cursor.activeColor);
             canvas.changed = true;
         }
     },
@@ -432,7 +432,7 @@ let cursor = {
 
 };
 
-var square = 32;
+var square = 64;
 var settings = {
     width: square,
     height: square
@@ -537,6 +537,16 @@ var canvas = {
     atRightEdge: function(index) {
         return (index % settings.width) == (settings.width - 1);
     },
+    // this helps us draw with larger brushes
+    indexToCoordinates: function(index) {
+        return {
+            x: index % settings.width,
+            y: Math.floor(index / settings.height)
+        }
+    },
+    coordinatesToIndex: function(x, y) {
+        return x + (y * settings.height);
+    },
     
     init: function() {
         this.firstRowCutoff = settings.width;
@@ -560,7 +570,8 @@ var canvas = {
         this.setCellHeight();
 
         canvas.load();
-
+        // set this to true to generate initial previews on page load
+        canvas.changed = true;
     },
     setZoom: function(width) {
         canvas.handles.container.style.width = width + '%';
@@ -596,10 +607,42 @@ var canvas = {
         this.setPixels(colors);
     },
     save: function() {
-
-        
+        let out = [];
+        this.handles.container.childNodes.forEach(function(node) {
+            out.push( node.style.backgroundColor );
+        });
+        localStorage.setItem('pixels', JSON.stringify(out));
     },
     
+    draw: function(el, color) {
+        if (cursor.brushType == '1') {
+            el.style.backgroundColor = cursor.activeColor;
+            return;
+        }
+        let brushDeltas = {
+            '3': 1,
+            '5': 2
+        };
+        let delta = brushDeltas[cursor.brushType];
+
+
+        // what does procedural code look like?
+        let index = parseInt(el.getAttribute('data-index'));
+
+        let coords = this.indexToCoordinates(index);
+        let startX = Math.max(coords.x - delta, 0);
+        let endX = Math.min(coords.x + delta, settings.width-1);
+        let startY = Math.max(coords.y - delta, 0);
+        let endY = Math.min(coords.y + delta, settings.height-1);
+
+        for (let x = startX; x <= endX; x++) {
+            for (let y = startY; y <= endY; y++) {
+                let i = this.coordinatesToIndex(x, y);
+                this.squares[i].style.backgroundColor = cursor.activeColor;
+
+            }
+        }
+    },
     
     fill: function(el, color) {
         let index = parseInt(el.getAttribute('data-index'));
@@ -637,21 +680,31 @@ var canvas = {
         }
         canvas.changed = true;
     }
+};
 
+var preview = {
+    handles: {
+        container: document.getElementById('preview'),
+        link: document.getElementById('previewLink')
+    },
+    init: function() {
+        // create canvas with width and height 3x the settings
+        let el = tag('CANVAS', {'width': settings.width, 'height': settings.height}, []);
+        this.handles.canvas = el;
+        drawChildren(preview.handles.container, [el]);
+    }
 };
 
 var tiled = {
-    changed: false,
     squares: [],
     handles: {
-        container: document.getElementById('tiled')
+        container: document.getElementById('tiledPreview')
     },
     init: function() {
         // create canvas with width and height 3x the settings
         let el = tag('CANVAS', {'width': settings.width * 3, 'height': settings.height * 3, 'style': 'width: 500px;'}, []);
         this.handles.canvas = el;
         drawChildren(tiled.handles.container, [el]);
-
     }
 };
 
@@ -705,30 +758,25 @@ canvas.init();
 controls.init();
 history.init();
 tiled.init();
+preview.init();
 
 setInterval(
     function() {
-        let out = [];
         if (!canvas.changed) {
             return;
         }
-        // TODO: move this logic to canvas.save()
-        canvas.handles.container.childNodes.forEach(function(node) {
-            out.push( node.style.backgroundColor );
-
-        });
-        localStorage.setItem('pixels', JSON.stringify(out));
+        canvas.save();
         canvas.changed = false;
-    },
-    2000
-);
 
-setInterval(
-    function() {
-        let c = tiled.handles.canvas;
-        let ctx = c.getContext('2d');
-        let id = ctx.getImageData(0, 0, settings.width, settings.height);
-        let a = id.data;
+
+        // Update preview and tiled preview
+        let tiledCtx = tiled.handles.canvas.getContext('2d');
+        let tiledImageData = tiledCtx.getImageData(0, 0, settings.width, settings.height);
+        let tiledImageDataData = tiledImageData.data;
+
+        let previewCtx = preview.handles.canvas.getContext('2d');
+        let previewImageData = previewCtx.getImageData(0, 0, settings.width, settings.height);
+        let previewImageDataData = previewImageData.data;
 
         // TODO: move this logic to canvas.save()
         let i = 0;
@@ -738,22 +786,26 @@ setInterval(
             let parts = bg.substring(4, bg.length - 1).split(', ');
 
             // TODO: handle empty / transparent regions
-            a[i] = parseInt(parts[0]);
-            a[i + 1] = parseInt(parts[1]);
-            a[i + 2] = parseInt(parts[2]);
-            a[i + 3] = 255; // alpha
-
+            tiledImageDataData[i] = parseInt(parts[0]);
+            tiledImageDataData[i + 1] = parseInt(parts[1]);
+            tiledImageDataData[i + 2] = parseInt(parts[2]);
+            tiledImageDataData[i + 3] = 255; // alpha
             i += 4;
         });
 
         // tile it!
-
         for (let i = 0; i < 3; i++) {
             for (let j = 0; j < 3; j++) {
-                ctx.putImageData(id, i * settings.width, j * settings.height);
+                tiledCtx.putImageData(tiledImageData, i * settings.width, j * settings.height);
 
             }
         }
+
+        previewCtx.putImageData(tiledImageData, 0, 0);
+
+        // update data url
+        let url = preview.handles.canvas.toDataURL();
+        preview.handles.link.href = url;
         
     },
     1000
