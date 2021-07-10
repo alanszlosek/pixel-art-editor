@@ -1,6 +1,6 @@
 # Pixel Art Editor
 
-Just cuz.
+Just cuz. [Here's a screenshot](https://alanszlosek.com/images/pixel-art-editor.png)
 
 If you'd like to watch me write the code for this project, check out my [Pixel Art Editor playlist](https://www.youtube.com/playlist?list=PLGonE3T1sorSsJwFLeuFBOc26oRJaMfA5) on YouTube. It might make good background noise. :-)
 
