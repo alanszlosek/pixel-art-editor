@@ -157,6 +157,10 @@ button.notice, #nav > div.notice {
     border: 2px solid red;
 }
 
+#coordinates {
+    text-align: right;
+}
+
 div.controls {
     display: flex;
     margin-bottom: 10px;
@@ -207,6 +211,7 @@ div.controls > div.selected {
             <div id="canvas"></div>
         </div>
         <div style="padding-left: 40px;">
+            <div id="coordinates"></div>
             <div id="controls">
                 <div class="flex">
                     <div>Primary</div>
@@ -240,7 +245,9 @@ div.controls > div.selected {
 
             <h2>Actual Size Preview</h2>
             <div id="preview"></div>
-            <a href="#" id="pngLink" download="image.png">Download PNG</a> <a href="#" id="jsonLink" download="image.json">Download JSON</a>
+            <a href="#" id="pngLink" download="image.png">Save PNG</a>
+            <a href="#" id="saveJSON" download="image.json">Save JSON</a>
+            <input type="file" accept="application/json" id="loadJSON" /><label for="loadJSON">Load JSON</label>
             <br /><br />
 
         </div>
@@ -290,6 +297,7 @@ var handles = {
     body: document.body,
     videos: document.getElementById('main'),
     tags: document.getElementById('tags'),
+    coordinates: document.getElementById('coordinates'),
 
     preview: null
 };
@@ -380,6 +388,16 @@ var handlers = {
     },
     mousemove: {
         canvas: function(e) {
+            let target = e.target;
+            if (cursor.hoveringOver != target && target.hasAttribute('data-index')) {
+                cursor.hoveringOver = target;
+
+                let index = target.getAttribute('data-index');
+                let coords = canvas.indexToCoordinates(index);
+                handles.coordinates.innerText = "X: " + coords.x + " Y: " + coords.y;
+
+            }
+            console.log
             if (!cursor.start) {
                 return;
             }
@@ -429,6 +447,7 @@ let cursor = {
     activeColor: '',
     start: false,
     brushType: 1,
+    hoveringOver: null
 
 };
 
@@ -686,7 +705,7 @@ var preview = {
     handles: {
         container: document.getElementById('preview'),
         pngLink: document.getElementById('pngLink'),
-        jsonLink: document.getElementById('jsonLink')
+        saveJSON: document.getElementById('saveJSON')
     },
     init: function() {
         // create canvas with width and height 3x the settings
@@ -812,7 +831,7 @@ setInterval(
         let jsonified = localStorage.getItem('pixels');
         let base64ified = btoa(jsonified);
         url = 'data:application/json;base64,' + base64ified;
-        preview.handles.jsonLink.href = url;
+        preview.handles.saveJSON.href = url;
 
 
         
