@@ -180,6 +180,10 @@ div.controls > div.selected {
     flex: 0 0 10px;
 }
 
+.active {
+    font-weight: bold;
+}
+
 #canvas {
     border: 1px solid black;
     display: grid;
@@ -192,13 +196,20 @@ div.controls > div.selected {
     border: 1px solid black;
 }
 
+
 .brush {
     border: 1px solid black;
- 
+    display: grid;
+    grid-template-columns: 50%  50%;
 }
+
 .brushType {
     background-color: #7cafc2;
     border-bottom: 3px solid #7cafc2;
+}
+
+#canvas, #tiledPreview > canvas, #preview > canvas, #brushes {
+    background-image: url('transparent.png');
 }
 
 
@@ -218,14 +229,22 @@ div.controls > div.selected {
                     <div class="spacer"></div>
                     <div>Secondary</div>
                 </div>
-                <div class="controls">
-                    <div class="brush" id="color1" style="background-color: yellow;"></div>
+                <div class="controls" id="brushes">
+                    <div class="brush" id="color1" style="background-color: rgba(255, 255, 255, 0);">
+                        <div data-action="decreaseOpacity1">Dn</div>
+                        <div data-action="increaseOpacity1">Up</div>
+                    </div>
                     <div class="spacer"></div>
-                    <div class="brush" id="color2"></div>
+                    <div class="brush" id="color2">
+                        <div data-action="decreaseOpacity2">Dn</div>
+                        <div data-action="increaseOpacity2">Up</div>
+                    </div>
                 </div>
                 <div class="controls">
                     <div class="brushType selected" data-action="brushType" data-value="1">1px</div>
+                    <div class="brushType" data-action="brushType" data-value="2">2px</div>
                     <div class="brushType" data-action="brushType" data-value="3">3px</div>
+                    <div class="brushType" data-action="brushType" data-value="4">4px</div>
                     <div class="brushType" data-action="brushType" data-value="5">5px</div>
                     <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
                     <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
@@ -235,7 +254,8 @@ div.controls > div.selected {
                     <div data-action="redo">Redo</div>
                     <div data-action="zoomOut">-</div>
                     <div data-action="zoomIn">+</div>
-                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Toggle Grid</div>
+                    <div style="background-color: #a1b56c;" data-action="toggleHighlight" class="active">Highlight</div>
+                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Grid</div>
                 </div>
             </div>
 
@@ -292,6 +312,19 @@ var tag = function(tagName, attributes, children) {
 
     return element;
 };
+
+var rgbaParts = function(s) {
+    let parts = s.replace(/[^0-9,.]/g, '').split(',');
+    parts[0] = parseInt(parts[0], 10);
+    parts[1] = parseInt(parts[1], 10);
+    parts[2] = parseInt(parts[2], 10);
+    if (parts.length == 4) {
+        parts[3] = parseFloat(parts[3], 10);
+    } else {
+        parts[3] = 1.0;
+    }
+    return parts;
+}
 
 var handles = {
     body: document.body,
@@ -356,6 +389,24 @@ var handlers = {
         },
         canvas: function(e) {
             e.preventDefault(); // to prevent right-click context menu
+        }
+    },
+
+    // TODO: control with Toggle Highlight button
+    mouseout: {
+        canvas: function(e) {
+            if (!canvas.highlight) {
+                return;
+            }
+            e.target.style['border'] = '';
+        }
+    },
+    mouseover: {
+        canvas: function(e) {
+            if (!canvas.highlight) {
+                return;
+            }
+            e.target.style['border'] = "1px solid red";
         }
     },
 
@@ -500,15 +551,60 @@ let controls = {
             tag('DIV', {id:'erase'}, ['X'])
         );
         paletteColors.forEach(function(color) {
-            out.push(
-                tag('DIV', {style: 'background-color: ' + color}, [])
-            );
+            let t = tag('DIV', {style: 'background-color: ' + color}, []);
+            //t.style.backgroundColor = t.style.backgroundColor.replace(/rgb/g, 'rgba');
+            out.push(t);
         });
         drawChildren(controls.handles.palette, out);
     },
 
-    toggleGrid: function() {
+    toggleHighlight: function(target) {
+        target.classList.toggle('active');
+        canvas.highlight = canvas.highlight ? false : true;
+    },
+
+    toggleGrid: function(target) {
+        target.classList.toggle('active');
         canvas.handles.container.classList.toggle('grid');
+    },
+
+    _decreaseOpacity: function(el) {
+        let parts = rgbaParts(el.style.backgroundColor);
+        if (parts.length == 4) {
+            if (parts[3] > 0.0) {
+                parts[3] -= 0.1;
+            }
+        } else {
+            parts[3] = 0.9;
+        }
+        let c = 'rgba(' + parts.join(',') + ')';
+        el.style.backgroundColor = c;
+        return c;
+    },
+    _increaseOpacity: function(el) {
+        let parts = rgbaParts(el.style.backgroundColor);
+        if (parts.length == 4) {
+            if (parts[3] < 1.0) {
+                parts[3] += 0.1;
+            }
+        } else {
+            parts[3] = 1.0;
+        }
+        let c = 'rgba(' + parts.join(',') + ')';
+        el.style.backgroundColor = c;
+        return c;
+    },
+    decreaseOpacity1: function() {
+        cursor.color1 = this._decreaseOpacity(this.handles.color1);
+    },
+    increaseOpacity1: function() {
+        cursor.color1 = this._increaseOpacity(this.handles.color1);
+    },
+    decreaseOpacity2: function() {
+        cursor.color2 = this._decreaseOpacity(this.handles.color2);
+    },
+    increaseOpacity2: function() {
+        cursor.color2 = this._increaseOpacity(this.handles.color2);
     },
     brushType: function(target) {
         let self = this;
@@ -549,6 +645,7 @@ var canvas = {
     handles: {
         container: document.getElementById('canvas')
     },
+    highlight: true,
     
     firstRowCutoff: null,
     lastRowCutoff: null,
@@ -655,6 +752,7 @@ var canvas = {
         };
         let delta = brushDeltas[cursor.brushType];
 
+        // TODO: support even deltas ... need ceil and floor calls somewhere
 
         // what does procedural code look like?
         let index = parseInt(el.getAttribute('data-index'));
@@ -816,13 +914,14 @@ setInterval(
             let parts;
             if (!bg) {
                 // use alpha here
-                console.log('no bg color');
                 parts = [255, 255, 255, 0];
 
             } else {
                 // TODO: this might be flaky
-                parts = bg.substring(4, bg.length - 1).split(', ').map(value => parseInt(value, 10));
-                parts[3] = 255;
+                // TODO: use this:
+                // e.style.backgroundColor.replace(/[^0-9,.]/g, '').split(',').map(value => parseFloat(value, 10));
+                parts = rgbaParts(bg);
+                parts[3] *= 255;
             }
 
             // TODO: handle empty / transparent regions
