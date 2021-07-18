@@ -17,6 +17,9 @@ html,body,button,input,textarea,div,em,a {
     margin: 0;
     padding: 0;
 }
+body {
+    user-select: none;
+}
 
 button {
     background-color: #3372b3;
@@ -201,6 +204,10 @@ div.controls > div.selected {
     border: 1px solid black;
     display: grid;
     grid-template-columns: 50%  50%;
+}
+.brush > div {
+    color: white;
+    opacity: 1.0;
 }
 
 .brushType {
@@ -467,6 +474,7 @@ var handlers = {
             e.preventDefault();
         }
     },
+
 
     click: {
         /*
