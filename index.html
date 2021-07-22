@@ -169,9 +169,11 @@ div.controls {
     margin-bottom: 10px;
 }
 div.controls > div {
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: contain;
     flex: 1;
     height: 40px;
-    padding-top: 10px;
     text-align: center;
 }
 
@@ -180,6 +182,7 @@ div.controls > div.selected {
 }
 
 .controls > div.spacer, .flex > div.spacer {
+    background-color: white;
     flex: 0 0 10px;
 }
 
@@ -192,9 +195,7 @@ div.controls > div.selected {
     display: grid;
     width: 100%;
 }
-#canvas > div {
-    width: 100%;
-}
+
 #canvas.grid > div {
     border: 1px solid black;
 }
@@ -206,21 +207,34 @@ div.controls > div.selected {
     grid-template-columns: 50%  50%;
 }
 .brush > div {
-    color: white;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+    background-size: contain;
+    
     opacity: 1.0;
 }
 
-.brushType {
+.controls.tool > div, .controls.action > div {
     background-color: #7cafc2;
     border-bottom: 3px solid #7cafc2;
+}
+
+.controls.action > div.toggle {
+    background-color: #a1b56c;
+    border-bottom: 3px solid #a1b56c;
 }
 
 #canvas, #tiledPreview > canvas, #preview > canvas, #brushes {
     background-image: url('transparent.png');
 }
+span.material-icons {
+    color: white;
+    font-size: 36px;
+}
 
 
 </style>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 </head>
 <body id="body">
 
@@ -229,40 +243,40 @@ div.controls > div.selected {
             <div id="canvas"></div>
         </div>
         <div style="padding-left: 40px;">
-            <div id="coordinates"></div>
+            <div id="coordinates">X: 0 Y: 0</div>
             <div id="controls">
                 <div class="flex">
-                    <div>Primary</div>
+                    <div>Left Mouse Button Color</div>
                     <div class="spacer"></div>
-                    <div>Secondary</div>
+                    <div>Right Mouse Button Color</div>
                 </div>
                 <div class="controls" id="brushes">
                     <div class="brush" id="color1" style="background-color: rgba(255, 255, 255, 0);">
-                        <div data-action="decreaseOpacity1">Dn</div>
-                        <div data-action="increaseOpacity1">Up</div>
+                        <div data-action="decreaseOpacity1" style="text-align: left;"><span class="material-icons">opacity</span></div>
+                        <div data-action="increaseOpacity1" style="text-align: right;"><span class="material-icons">water_drop</span></div>
                     </div>
                     <div class="spacer"></div>
                     <div class="brush" id="color2">
-                        <div data-action="decreaseOpacity2">Dn</div>
-                        <div data-action="increaseOpacity2">Up</div>
+                        <div data-action="decreaseOpacity2" style="text-align: left;"><span class="material-icons">opacity</span></div>
+                        <div data-action="increaseOpacity2" style="text-align: right;"><span class="material-icons">water_drop</span></div>
                     </div>
                 </div>
-                <div class="controls">
-                    <div class="brushType selected" data-action="brushType" data-value="1">1px</div>
-                    <div class="brushType" data-action="brushType" data-value="2">2px</div>
-                    <div class="brushType" data-action="brushType" data-value="3">3px</div>
-                    <div class="brushType" data-action="brushType" data-value="4">4px</div>
-                    <div class="brushType" data-action="brushType" data-value="5">5px</div>
-                    <div class="brushType" data-action="brushType" data-value="fill">Fill</div>
-                    <div class="brushType" data-action="brushType" data-value="dropper">Dropper</div>
+                <div class="controls tool">
+                    <div class="selected" data-action="brushType" data-value="1">1px</div>
+                    <div data-action="brushType" data-value="2">2px</div>
+                    <div data-action="brushType" data-value="3">3px</div>
+                    <div data-action="brushType" data-value="4">4px</div>
+                    <div data-action="brushType" data-value="5">5px</div>
+                    <div data-action="brushType" data-value="fill"><span class="material-icons">format_color_fill</span></div>
+                    <div data-action="brushType" data-value="dropper"><span class="material-icons">colorize</span></div>
                 </div>
-                <div class="controls">
-                    <div data-action="undo">Undo</div>
-                    <div data-action="redo">Redo</div>
-                    <div data-action="zoomOut">-</div>
-                    <div data-action="zoomIn">+</div>
-                    <div style="background-color: #a1b56c;" data-action="toggleHighlight" class="active">Highlight</div>
-                    <div style="background-color: #a1b56c;" data-action="toggleGrid">Grid</div>
+                <div class="controls action">
+                    <div data-action="undo"><span class="material-icons">undo</span></div>
+                    <div data-action="redo"><span class="material-icons">redo</span></div>
+                    <div data-action="zoomOut"><span class="material-icons">zoom_out</span></div>
+                    <div data-action="zoomIn"><span class="material-icons">zoom_in</span></div>
+                    <div class="toggle" data-action="toggleHighlight" class="active">Highlight</div>
+                    <div class="toggle" data-action="toggleGrid">Grid</div>
                 </div>
             </div>
 
@@ -419,6 +433,7 @@ var handlers = {
 
     mousedown: {
         palette: function(e) {
+            console.log(e);
             if (e.button == 2 || (e.button == 0 && controls.alt)) {
                 cursor.color2 = controls.handles.color2.style.backgroundColor = e.target.style.backgroundColor;
             } else if (e.button == 0) {
@@ -539,7 +554,7 @@ let controls = {
             var target = event.target;
             var action;
             // go up a level if material icon was clicked
-            if (target.tagName == 'I') {
+            if (target.tagName == 'SPAN') {
                 target = target.parentNode;
             }
             action = target.getAttribute('data-action');
@@ -685,7 +700,9 @@ var canvas = {
         this.lastRowCutoff = (settings.width * settings.width) - settings.width;
     
         var percentage = (100 / settings.width) + '% ';
-        canvas.handles.container.style['gridTemplateColumns'] = percentage.repeat(settings.width);
+        percentage = '1fr ';
+        canvas.handles.container.style['gridTemplateColumns'] = percentage.repeat(settings.width); 
+        canvas.handles.container.style['gridAutoRows'] = '1fr';
 
         this.squares = [];
         let index = 0;
@@ -710,6 +727,8 @@ var canvas = {
         this.setCellHeight();
     },
     setCellHeight: function() {
+        canvas.handles.container.style['height'] = canvas.handles.container.clientWidth + 'px';
+        return;
         let w = canvas.handles.container.childNodes[0].clientWidth;
         for (let i = 0; i < canvas.handles.container.childNodes.length; i++) {
             canvas.handles.container.childNodes[i].style['height'] = w + 'px';
