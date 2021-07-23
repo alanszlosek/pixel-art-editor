@@ -262,13 +262,13 @@ span.material-icons {
                     </div>
                 </div>
                 <div class="controls tool">
-                    <div class="selected" data-action="brushType" data-value="1">1px</div>
-                    <div data-action="brushType" data-value="2">2px</div>
-                    <div data-action="brushType" data-value="3">3px</div>
-                    <div data-action="brushType" data-value="4">4px</div>
-                    <div data-action="brushType" data-value="5">5px</div>
-                    <div data-action="brushType" data-value="fill"><span class="material-icons">format_color_fill</span></div>
-                    <div data-action="brushType" data-value="dropper"><span class="material-icons">colorize</span></div>
+                    <div class="selected" data-action="toolSize" data-value="1">1px</div>
+                    <div data-action="toolSize" data-value="2">2px</div>
+                    <div data-action="toolSize" data-value="3">3px</div>
+                    <div data-action="toolSize" data-value="4">4px</div>
+                    <div data-action="toolSize" data-value="5">5px</div>
+                    <div data-action="tool" data-value="fill"><span class="material-icons">format_color_fill</span></div>
+                    <div data-action="tool" data-value="dropper"><span class="material-icons">colorize</span></div>
                 </div>
                 <div class="controls action">
                     <div data-action="undo"><span class="material-icons">undo</span></div>
@@ -427,7 +427,7 @@ var handlers = {
             if (!canvas.highlight) {
                 return;
             }
-            e.target.style['border'] = "1px solid red";
+            cursor.highlight(e);
         }
     },
 
@@ -450,7 +450,7 @@ var handlers = {
             } else if (e.button == 0) {
                 cursor.activeColor = cursor.color1;
             }
-            if (cursor.brushType == 'fill') {
+            if (cursor.tool == 'fill') {
                 // color cells around, too
                 canvas.fill(e.target, cursor.activeColor);
             } else {
@@ -528,8 +528,47 @@ let cursor = {
     color2: '',
     activeColor: '',
     start: false,
-    brushType: 1,
-    hoveringOver: null
+    tool: 'brush',
+    size: 1,
+    hoveringOver: null,
+
+    highlighted: [],
+    highlight: function(e) {
+        let el = e.target;
+
+        let index = parseInt(el.getAttribute('data-index'));
+        let coords = canvas.indexToCoordinates(index);
+        let startX = coords.x;
+        let startY = coords.y;
+        let endX = coords.x + this.size;
+        let endY = coords.y + this.size;
+
+        // reset
+        for (let i = 0; i < this.highlighted.length; i++) {
+            this.highlighted[i].style.border = '';
+        }
+        this.highlighted = [];
+
+        for (let x = startX; x < endX; x++) {
+            let i = canvas.coordinatesToIndex(x, startY);
+            canvas.squares[i].style.borderTop = '1px solid red';
+            this.highlighted.push( canvas.squares[i] );
+
+            i = canvas.coordinatesToIndex(x, endY - 1);
+            canvas.squares[i].style.borderBottom = '1px solid red';
+            this.highlighted.push( canvas.squares[i] );
+        }
+
+        for (let y = startY; y < endY; y++) {
+            let i = canvas.coordinatesToIndex(startX, y);
+            canvas.squares[i].style.borderLeft = '1px solid red';
+            this.highlighted.push( canvas.squares[i] );
+
+            i = canvas.coordinatesToIndex(endX - 1, y);
+            canvas.squares[i].style.borderRight = '1px solid red';
+            this.highlighted.push( canvas.squares[i] );
+        }
+    }
 
 };
 
@@ -629,15 +668,24 @@ let controls = {
     increaseOpacity2: function() {
         cursor.color2 = this._increaseOpacity(this.handles.color2);
     },
-    brushType: function(target) {
+    toolSize: function(target) {
         let self = this;
         self.handles.controls.querySelectorAll('div').forEach(function(el) {
             el.classList.remove('selected');
         })
 
         target.classList.add('selected');
-        
-        cursor.brushType = target.getAttribute('data-value');
+        cursor.tool = 'brush';
+        cursor.size = parseInt(target.getAttribute('data-value'));
+    },
+    tool: function(target) {
+        let self = this;
+        self.handles.controls.querySelectorAll('div').forEach(function(el) {
+            el.classList.remove('selected');
+        })
+
+        target.classList.add('selected');
+        cursor.tool = target.getAttribute('data-value');
     },
     zoomIn: function() {
         this.zoom += 10;
@@ -728,11 +776,6 @@ var canvas = {
     },
     setCellHeight: function() {
         canvas.handles.container.style['height'] = canvas.handles.container.clientWidth + 'px';
-        return;
-        let w = canvas.handles.container.childNodes[0].clientWidth;
-        for (let i = 0; i < canvas.handles.container.childNodes.length; i++) {
-            canvas.handles.container.childNodes[i].style['height'] = w + 'px';
-        }
     },
     // TODO: rename / reword
     getPixels: function() {
@@ -769,29 +812,16 @@ var canvas = {
     },
     
     draw: function(el, color) {
-        if (cursor.brushType == '1') {
-            el.style.backgroundColor = cursor.activeColor;
-            return;
-        }
-        let brushDeltas = {
-            '3': 1,
-            '5': 2
-        };
-        let delta = brushDeltas[cursor.brushType];
-
-        // TODO: support even deltas ... need ceil and floor calls somewhere
-
-        // what does procedural code look like?
         let index = parseInt(el.getAttribute('data-index'));
 
         let coords = this.indexToCoordinates(index);
-        let startX = Math.max(coords.x - delta, 0);
-        let endX = Math.min(coords.x + delta, settings.width-1);
-        let startY = Math.max(coords.y - delta, 0);
-        let endY = Math.min(coords.y + delta, settings.height-1);
+        let startX = coords.x;
+        let startY = coords.y;
+        let endX = coords.x + cursor.size;
+        let endY = coords.y + cursor.size;
 
-        for (let x = startX; x <= endX; x++) {
-            for (let y = startY; y <= endY; y++) {
+        for (let x = startX; x < endX; x++) {
+            for (let y = startY; y < endY; y++) {
                 let i = this.coordinatesToIndex(x, y);
                 this.squares[i].style.backgroundColor = cursor.activeColor;
 
